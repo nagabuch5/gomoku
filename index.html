@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>나의 첫 오목 AI</title>
+    <style>
+        body { text-align: center; background-color: #f0f0f0; }
+        canvas { background-color: #e3a05b; box-shadow: 5px 5px 15px rgba(0,0,0,0.3); cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>오목 게임 (기초 버전)</h1>
+    <canvas id="omokCanvas" width="450" height="450"></canvas>
+    <script>
+        const canvas = document.getElementById('omokCanvas');
+        const ctx = canvas.getContext('2d');
+        const size = 15; // 15x15 판
+        const step = 30; // 격자 간격
+        let isBlack = true; // 흑돌 차례
+
+        // 바둑판 그리기
+        for (let i = 0; i < size; i++) {
+            ctx.moveTo(15 + i * step, 15);
+            ctx.lineTo(15 + i * step, 435);
+            ctx.moveTo(15, 15 + i * step);
+            ctx.lineTo(435, 15 + i * step);
+        }
+        ctx.stroke();
+
+        // 클릭하면 돌 놓기
+        canvas.onclick = function(e) {
+            let x = Math.round((e.offsetX - 15) / step);
+            let y = Math.round((e.offsetY - 15) / step);
+            
+            ctx.beginPath();
+            ctx.arc(15 + x * step, 15 + y * step, 13, 0, 2 * Math.PI);
+            ctx.fillStyle = isBlack ? "black" : "white";
+            ctx.fill();
+            isBlack = !isBlack; // 차례 변경
+        };
+    </script>
+</body>
+</html>
