@@ -1,42 +1,138 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>나의 첫 오목 AI</title>
+    <meta charset="UTF-8">
+    <title>나의 오목 AI - 선택과 승리</title>
     <style>
-        body { text-align: center; background-color: #f0f0f0; }
-        canvas { background-color: #e3a05b; box-shadow: 5px 5px 15px rgba(0,0,0,0.3); cursor: pointer; }
+        body { text-align: center; background-color: #f0f0f0; font-family: sans-serif; }
+        canvas { background-color: #e3a05b; box-shadow: 5px 5px 15px rgba(0,0,0,0.3); cursor: pointer; margin-top: 20px; }
+        .menu { margin: 20px; padding: 20px; background: white; display: inline-block; border-radius: 10px; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; margin: 5px; border-radius: 5px; border: 1px solid #ccc; }
+        button:hover { background-color: #ddd; }
+        #status { font-size: 20px; font-weight: bold; margin: 10px; color: #333; }
     </style>
 </head>
 <body>
-    <h1>오목 게임 (기초 버전)</h1>
+
+    <h1>오목 게임</h1>
+
+    <div id="start-menu" class="menu">
+        <p>돌을 선택하세요</p>
+        <button onclick="startGame('black')">흑돌 (선공)</button>
+        <button onclick="startGame('white')">백돌 (후공)</button>
+        <button onclick="startGame('random')">랜덤 선택</button>
+    </div>
+
+    <div id="status">게임을 시작해 주세요!</div>
     <canvas id="omokCanvas" width="450" height="450"></canvas>
+    <br>
+    <button onclick="location.reload()">새로고침 (다시 시작)</button>
+
     <script>
         const canvas = document.getElementById('omokCanvas');
         const ctx = canvas.getContext('2d');
-        const size = 15; // 15x15 판
-        const step = 30; // 격자 간격
-        let isBlack = true; // 흑돌 차례
+        const statusText = document.getElementById('status');
+        const size = 15;
+        const step = 30;
+        let board = Array.from(Array(size), () => Array(size).fill(0)); // 0: 빈칸, 1: 흑, 2: 백
+        let userColor = 1; // 기본 흑
+        let currentTurn = 1; // 현재 누구 차례인지 (1: 흑, 2: 백)
+        let gameOver = false;
 
-        // 바둑판 그리기
-        for (let i = 0; i < size; i++) {
-            ctx.moveTo(15 + i * step, 15);
-            ctx.lineTo(15 + i * step, 435);
-            ctx.moveTo(15, 15 + i * step);
-            ctx.lineTo(435, 15 + i * step);
+        function drawBoard() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.beginPath();
+            for (let i = 0; i < size; i++) {
+                ctx.moveTo(15 + i * step, 15); ctx.lineTo(15 + i * step, 435);
+                ctx.moveTo(15, 15 + i * step); ctx.lineTo(435, 15 + i * step);
+            }
+            ctx.stroke();
         }
-        ctx.stroke();
 
-        // 클릭하면 돌 놓기
+        function startGame(choice) {
+            if (choice === 'black') userColor = 1;
+            else if (choice === 'white') userColor = 2;
+            else userColor = Math.random() < 0.5 ? 1 : 2;
+
+            document.getElementById('start-menu').style.display = 'none';
+            statusText.innerText = (userColor === 1 ? "당신은 흑돌입니다." : "당신은 백돌입니다.") + " 대국 시작!";
+            drawBoard();
+            
+            // 만약 유저가 백돌이면 AI(흑)가 먼저 한 수를 둡니다.
+            if (userColor === 2) {
+                setTimeout(aiTurn, 500);
+            }
+        }
+
         canvas.onclick = function(e) {
+            if (gameOver || currentTurn !== userColor) return;
+
             let x = Math.round((e.offsetX - 15) / step);
             let y = Math.round((e.offsetY - 15) / step);
-            
+
+            if (board[y][x] === 0) {
+                placeStone(x, y, userColor);
+                if (!gameOver) {
+                    currentTurn = (userColor === 1 ? 2 : 1);
+                    statusText.innerText = "AI가 생각 중입니다...";
+                    setTimeout(aiTurn, 500); // 0.5초 뒤 AI 작동
+                }
+            }
+        };
+
+        function placeStone(x, y, color) {
+            board[y][x] = color;
             ctx.beginPath();
             ctx.arc(15 + x * step, 15 + y * step, 13, 0, 2 * Math.PI);
-            ctx.fillStyle = isBlack ? "black" : "white";
+            ctx.fillStyle = color === 1 ? "black" : "white";
             ctx.fill();
-            isBlack = !isBlack; // 차례 변경
-        };
+            
+            if (checkWin(x, y, color)) {
+                statusText.innerText = (color === 1 ? "흑돌" : "백돌") + " 승리!!!";
+                gameOver = true;
+                setTimeout(() => alert((color === 1 ? "흑돌" : "백돌") + "이 5목을 완성하여 승리했습니다!"), 100);
+            }
+        }
+
+        // 아주 기초적인 AI (빈칸에 무작위로 두기)
+        function aiTurn() {
+            if (gameOver) return;
+            let emptySpots = [];
+            for(let y=0; y<size; y++) {
+                for(let x=0; x<size; x++) {
+                    if(board[y][x] === 0) emptySpots.push({x, y});
+                }
+            }
+            if (emptySpots.length > 0) {
+                let spot = emptySpots[Math.floor(Math.random() * emptySpots.length)];
+                let aiColor = (userColor === 1 ? 2 : 1);
+                placeStone(spot.x, spot.y, aiColor);
+                currentTurn = userColor;
+                statusText.innerText = "당신의 차례입니다.";
+            }
+        }
+
+        // 5목 판정 로직 (가로, 세로, 대각선 체크)
+        function checkWin(x, y, color) {
+            const directions = [[1,0], [0,1], [1,1], [1,-1]];
+            for (let [dx, dy] of directions) {
+                let count = 1;
+                // 한쪽 방향 체크
+                for (let i = 1; i < 5; i++) {
+                    let nx = x + dx * i, ny = y + dy * i;
+                    if (nx >= 0 && nx < size && ny >= 0 && ny < size && board[ny][nx] === color) count++;
+                    else break;
+                }
+                // 반대쪽 방향 체크
+                for (let i = 1; i < 5; i++) {
+                    let nx = x - dx * i, ny = y - dy * i;
+                    if (nx >= 0 && nx < size && ny >= 0 && ny < size && board[ny][nx] === color) count++;
+                    else break;
+                }
+                if (count >= 5) return true;
+            }
+            return false;
+        }
     </script>
 </body>
 </html>
