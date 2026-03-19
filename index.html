@@ -103,14 +103,13 @@
             }
         }
 
-		canvas.onclick = function(e) {
-			if (gameOver || currentTurn !== userColor) return;
+        canvas.onclick = function(e) {
+            if (gameOver || currentTurn !== userColor) return;
 
-			let x = Math.round((e.offsetX - 15) / step);
-			let y = Math.round((e.offsetY - 15) / step);
+            let x = Math.round((e.offsetX - 15) / step);
+            let y = Math.round((e.offsetY - 15) / step);
 
-			if (x >= 0 && x < size && y >= 0 && y < size && board[y][x] === 0) {
-				
+            if (x >= 0 && x < size && y >= 0 && y < size && board[y][x] === 0) {
 				// 외부 라이브러리 사용: 렌주룰일 때 흑돌 금수 체크
 				if (selectedRule === 'renju' && userColor === 1) {
 					let forbiddenType = Renju.checkForbidden(board, x, y, 1);
@@ -120,11 +119,14 @@
 						return;
 					}
 				}
-
-				placeStone(x, y, userColor);
-				// ... 후략
-			}
-		};
+                placeStone(x, y, userColor);
+                if (!gameOver) {
+                    currentTurn = (userColor === 1 ? 2 : 1);
+                    statusText.innerText = "AI가 생각 중입니다...";
+                    setTimeout(aiTurn, 500);
+                }
+            }
+        };
 
         function placeStone(x, y, color) {
             board[y][x] = color;
