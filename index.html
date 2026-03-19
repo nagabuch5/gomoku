@@ -2,14 +2,22 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>나의 오목 AI - 선택과 승리</title>
+	<script src="renju_logic.js"></script>
+    <title>오목고고혓 - 룰 선택 버전</title>
     <style>
         body { text-align: center; background-color: #f0f0f0; font-family: sans-serif; }
-        canvas { background-color: #e3a05b; box-shadow: 5px 5px 15px rgba(0,0,0,0.3); cursor: default; margin-top: 20px; }
-        .menu { margin: 20px; padding: 20px; background: white; display: inline-block; border-radius: 10px; }
+        canvas {
+            background-color: #e3a05b;
+            box-shadow: 5px 5px 15px rgba(0,0,0,0.3);
+            cursor: default; margin-top: 20px;
+            pointer-events: none;
+        }
+        .menu { margin: 20px; padding: 20px; background: white; display: inline-block; border-radius: 10px; border: 2px solid #ccc; }
+        .rule-selection { margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #eee; }
         button { padding: 10px 20px; font-size: 16px; cursor: pointer; margin: 5px; border-radius: 5px; border: 1px solid #ccc; }
         button:hover { background-color: #ddd; }
         #status { font-size: 20px; font-weight: bold; margin: 10px; color: #333; }
+        label { font-size: 16px; cursor: pointer; margin: 0 10px; }
     </style>
 </head>
 <body>
@@ -17,13 +25,18 @@
     <h1>오목 게임</h1>
 
     <div id="start-menu" class="menu">
-        <p>돌을 선택하세요</p>
+        <div class="rule-selection">
+            <p><strong>규칙 선택</strong></p>
+            <label><input type="radio" name="rule" value="free" checked> 자유룰</label>
+            <label><input type="radio" name="rule" value="renju"> 렌주룰 (첫 수 중앙)</label>
+        </div>
+        <p><strong>돌 선택</strong></p>
         <button onclick="startGame('black')">흑돌 (선공)</button>
         <button onclick="startGame('white')">백돌 (후공)</button>
         <button onclick="startGame('random')">랜덤 선택</button>
     </div>
 
-    <div id="status">게임을 시작해 주세요!</div>
+    <div id="status">규칙과 돌을 선택하고 게임을 시작하세요!</div>
     <canvas id="omokCanvas" width="450" height="450"></canvas>
     <br>
     <button onclick="location.reload()">새로고침 (다시 시작)</button>
@@ -34,51 +47,84 @@
         const statusText = document.getElementById('status');
         const size = 15;
         const step = 30;
-        let board = Array.from(Array(size), () => Array(size).fill(0)); // 0: 빈칸, 1: 흑, 2: 백
-        let userColor = 1; // 기본 흑
-        let currentTurn = 1; // 현재 누구 차례인지 (1: 흑, 2: 백)
+        const center = 7; 
+        let board = Array.from(Array(size), () => Array(size).fill(0));
+        let userColor = 1; 
+        let currentTurn = 1; 
         let gameOver = false;
+        let selectedRule = 'free'; // 'free' 또는 'renju'
 
         function drawBoard() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.beginPath();
+            ctx.strokeStyle = "#000";
             for (let i = 0; i < size; i++) {
                 ctx.moveTo(15 + i * step, 15); ctx.lineTo(15 + i * step, 435);
                 ctx.moveTo(15, 15 + i * step); ctx.lineTo(435, 15 + i * step);
             }
             ctx.stroke();
+            
+            // 중앙점(천원) 표시
+            ctx.beginPath();
+            ctx.arc(15 + center * step, 15 + center * step, 3, 0, 2 * Math.PI);
+            ctx.fill();
         }
 
         function startGame(choice) {
+            // 규칙 확인
+            selectedRule = document.querySelector('input[name="rule"]:checked').value;
+            
+            board = Array.from(Array(size), () => Array(size).fill(0));
+            gameOver = false;
+            currentTurn = 1;
+
             if (choice === 'black') userColor = 1;
             else if (choice === 'white') userColor = 2;
             else userColor = Math.random() < 0.5 ? 1 : 2;
 
             document.getElementById('start-menu').style.display = 'none';
-            statusText.innerText = (userColor === 1 ? "당신은 흑돌입니다." : "당신은 백돌입니다.") + " 대국 시작!";
+            canvas.style.pointerEvents = 'auto';
             drawBoard();
             
-            // 만약 유저가 백돌이면 AI(흑)가 먼저 한 수를 둡니다.
-            if (userColor === 2) {
-                setTimeout(aiTurn, 500);
+            if (selectedRule === 'renju') {
+                // [렌주룰] 첫 수는 무조건 중앙
+                placeStone(center, center, 1);
+                currentTurn = 2;
+                if (userColor === 1) {
+                    statusText.innerText = "렌주룰: 흑돌이 중앙에 놓였습니다. AI(백돌) 차례입니다.";
+                    setTimeout(aiTurn, 500);
+                } else {
+                    statusText.innerText = "렌주룰: AI(흑돌)가 중앙에 두었습니다. 당신(백돌) 차례입니다.";
+                }
+            } else {
+                // [자유룰] 아무것도 놓지 않고 시작
+                statusText.innerText = (userColor === 1 ? "자유룰: 당신(흑돌) 차례입니다." : "자유룰: AI(흑돌)가 생각 중입니다.");
+                if (userColor === 2) setTimeout(aiTurn, 500);
             }
         }
 
-        canvas.onclick = function(e) {
-            if (gameOver || currentTurn !== userColor) return;
+		canvas.onclick = function(e) {
+			if (gameOver || currentTurn !== userColor) return;
 
-            let x = Math.round((e.offsetX - 15) / step);
-            let y = Math.round((e.offsetY - 15) / step);
+			let x = Math.round((e.offsetX - 15) / step);
+			let y = Math.round((e.offsetY - 15) / step);
 
-            if (board[y][x] === 0) {
-                placeStone(x, y, userColor);
-                if (!gameOver) {
-                    currentTurn = (userColor === 1 ? 2 : 1);
-                    statusText.innerText = "AI가 생각 중입니다...";
-                    setTimeout(aiTurn, 500); // 0.5초 뒤 AI 작동
-                }
-            }
-        };
+			if (x >= 0 && x < size && y >= 0 && y < size && board[y][x] === 0) {
+				
+				// 외부 라이브러리 사용: 렌주룰일 때 흑돌 금수 체크
+				if (selectedRule === 'renju' && userColor === 1) {
+					let forbiddenType = Renju.checkForbidden(board, x, y, 1);
+					if (forbiddenType > 0) {
+						const messages = ["", "3-3 금수입니다!", "4-4 금수입니다!", "장륙(6목) 금수입니다!"];
+						alert(messages[forbiddenType]);
+						return;
+					}
+				}
+
+				placeStone(x, y, userColor);
+				// ... 후략
+			}
+		};
 
         function placeStone(x, y, color) {
             board[y][x] = color;
@@ -90,11 +136,10 @@
             if (checkWin(x, y, color)) {
                 statusText.innerText = (color === 1 ? "흑돌" : "백돌") + " 승리!!!";
                 gameOver = true;
-                setTimeout(() => alert((color === 1 ? "흑돌" : "백돌") + "이 5목을 완성하여 승리했습니다!"), 100);
+                setTimeout(() => alert((color === 1 ? "흑돌" : "백돌") + "이 승리했습니다!"), 100);
             }
         }
 
-        // 아주 기초적인 AI (빈칸에 무작위로 두기)
         function aiTurn() {
             if (gameOver) return;
             let emptySpots = [];
@@ -107,23 +152,22 @@
                 let spot = emptySpots[Math.floor(Math.random() * emptySpots.length)];
                 let aiColor = (userColor === 1 ? 2 : 1);
                 placeStone(spot.x, spot.y, aiColor);
-                currentTurn = userColor;
-                statusText.innerText = "당신의 차례입니다.";
+                if (!gameOver) {
+                    currentTurn = userColor;
+                    statusText.innerText = "당신의 차례입니다.";
+                }
             }
         }
 
-        // 5목 판정 로직 (가로, 세로, 대각선 체크)
         function checkWin(x, y, color) {
             const directions = [[1,0], [0,1], [1,1], [1,-1]];
             for (let [dx, dy] of directions) {
                 let count = 1;
-                // 한쪽 방향 체크
                 for (let i = 1; i < 5; i++) {
                     let nx = x + dx * i, ny = y + dy * i;
                     if (nx >= 0 && nx < size && ny >= 0 && ny < size && board[ny][nx] === color) count++;
                     else break;
                 }
-                // 반대쪽 방향 체크
                 for (let i = 1; i < 5; i++) {
                     let nx = x - dx * i, ny = y - dy * i;
                     if (nx >= 0 && nx < size && ny >= 0 && ny < size && board[ny][nx] === color) count++;
